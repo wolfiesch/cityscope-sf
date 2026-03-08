@@ -1,7 +1,10 @@
+import type { ReactNode } from "react";
+import { Flame, Siren, ClipboardList, Swords } from "lucide-react";
+
 interface Preset {
   id: string;
   label: string;
-  icon: string;
+  icon: ReactNode;
   description: string;
   viewState: {
     longitude: number;
@@ -17,7 +20,7 @@ const PRESETS: Preset[] = [
   {
     id: "heritage-hotspots",
     label: "Heritage Hotspots",
-    icon: "\u{1F525}",
+    icon: <Flame size={16} />,
     description: "Where SF's history lives",
     viewState: { longitude: -122.41, latitude: 37.788, zoom: 14, pitch: 50, bearing: -10 },
     layers: { heritage: true, landmarks: true, permits: false, crime: false, threeOneOne: false, fire: false },
@@ -25,7 +28,7 @@ const PRESETS: Preset[] = [
   {
     id: "live-emergencies",
     label: "Live Emergencies",
-    icon: "\u{1F6A8}",
+    icon: <Siren size={16} />,
     description: "Active 911 calls right now",
     viewState: { longitude: -122.42, latitude: 37.77, zoom: 13, pitch: 40, bearing: 0 },
     layers: { heritage: false, landmarks: false, permits: false, crime: true, threeOneOne: false, fire: true },
@@ -33,7 +36,7 @@ const PRESETS: Preset[] = [
   {
     id: "street-reports",
     label: "Street Reports",
-    icon: "\u{1F4CB}",
+    icon: <ClipboardList size={16} />,
     description: "311 + crime in the Mission",
     viewState: { longitude: -122.418, latitude: 37.76, zoom: 14.5, pitch: 35, bearing: 15 },
     layers: { heritage: false, landmarks: false, permits: false, crime: true, threeOneOne: true, fire: false },
@@ -41,7 +44,7 @@ const PRESETS: Preset[] = [
   {
     id: "dev-vs-history",
     label: "Dev vs History",
-    icon: "\u{2694}\u{FE0F}",
+    icon: <Swords size={16} />,
     description: "Construction meets heritage",
     viewState: { longitude: -122.398, latitude: 37.778, zoom: 14.5, pitch: 45, bearing: -20 },
     layers: { heritage: true, landmarks: true, permits: true, crime: false, threeOneOne: false, fire: false },

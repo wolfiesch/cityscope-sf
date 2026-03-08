@@ -1,5 +1,5 @@
 import type { Layer } from "deck.gl";
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 
 // Heritage: [lng, lat, category_code, name]
 // category_code: 0=unknown, 1=Category A (Known Historic), 2=Category B (Potential), 3=Category C (Not Historic)
@@ -122,7 +122,7 @@ export interface LayerDefinition<T = unknown> {
   id: string;
   group: LayerGroup;
   label: string;
-  icon: string;
+  icon: ReactNode;
   color: string;
   borderClass: string;
   description: string;

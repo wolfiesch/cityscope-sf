@@ -1,4 +1,6 @@
+import { createElement } from "react";
 import { ScatterplotLayer } from "deck.gl";
+import { ShieldAlert } from "lucide-react";
 import type { CrimeDispatch, LayerDefinition, NormalizedFeature, LiveFeedItem, SelectedFeature } from "../types";
 
 const PRIORITY_COLORS: Record<string, [number, number, number]> = {
@@ -35,7 +37,7 @@ export const crimeLayerDef: LayerDefinition<CrimeDispatch> = {
   id: "crime",
   group: "Public Safety",
   label: "Police Dispatch",
-  icon: "\u{1F6A8}",
+  icon: createElement(ShieldAlert, { size: 18 }),
   color: "#ff3232",
   borderClass: "border-l-red-500",
   description: "Live calls by priority",

@@ -1,4 +1,6 @@
+import { createElement } from "react";
 import { ScatterplotLayer } from "deck.gl";
+import { HardHat } from "lucide-react";
 import type { PermitPoint, LayerDefinition, NormalizedFeature } from "../types";
 
 const TYPE_COLORS: Record<number, [number, number, number]> = {
@@ -32,7 +34,7 @@ export const permitsLayerDef: LayerDefinition<PermitPoint> = {
   id: "permits",
   group: "Historic",
   label: "Building Permits",
-  icon: "\u{1F3D7}",
+  icon: createElement(HardHat, { size: 18 }),
   color: "#46dc64",
   borderClass: "border-l-green-500",
   description: "Active construction/demo",

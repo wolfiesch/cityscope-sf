@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { Map } from "lucide-react";
 import { LAYER_REGISTRY } from "../lib/layerRegistry";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 
@@ -49,8 +50,8 @@ export function LayerPanel({
           aria-pressed={historicMapVisible}
         >
           <div className="flex items-center gap-3">
-            <span className="shrink-0 text-base" role="img">
-              {"\u{1F5FA}"}
+            <span className="shrink-0 text-gray-300">
+              <Map size={18} />
             </span>
             <div
               className="h-2.5 w-2.5 shrink-0 rounded-full"
@@ -84,7 +85,7 @@ export function LayerPanel({
               aria-pressed={isVisible}
             >
               <div className="flex items-center gap-3">
-                <span className="shrink-0 text-base" role="img">
+                <span className="shrink-0 text-gray-300">
                   {def.icon}
                 </span>
                 <div
