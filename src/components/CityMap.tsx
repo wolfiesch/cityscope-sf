@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Map, Layer as MapLayer, Source } from "react-map-gl/maplibre";
 import type { MapLayerMouseEvent } from "react-map-gl/maplibre";
 import { DeckGL } from "@deck.gl/react";
+import { BitmapLayer } from "deck.gl";
 import type { PickingInfo, MapViewState } from "deck.gl";
 import { Protocol } from "pmtiles";
 import maplibregl from "maplibre-gl";
@@ -12,6 +13,7 @@ import { heritageLayerDef } from "../layers/heritageLayer";
 import { permitsLayerDef } from "../layers/permitsLayer";
 import type { HeritagePoint, LayerDataState, PermitPoint, SelectedFeature } from "../types";
 import { HistoricMapOverlay } from "./HistoricMapOverlay";
+import type { HistoricMapData } from "./HistoricMapOverlay";
 
 const MAP_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 const STATIC_INTERACTIVE_LAYER_IDS = ["heritage-pick-points", "permits-circles"];
@@ -32,6 +34,8 @@ interface CityMapProps {
   viewState: MapViewState;
   onViewStateChange: (vs: MapViewState) => void;
   historicMapVisible: boolean;
+  historicMapData: HistoricMapData | null;
+  onHistoricMapSelect: (data: HistoricMapData | null) => void;
 }
 
 function isLngLatPair(value: unknown): value is [number, number] {
@@ -51,6 +55,8 @@ export function CityMap({
   viewState,
   onViewStateChange,
   historicMapVisible,
+  historicMapData,
+  onHistoricMapSelect,
 }: CityMapProps) {
   const [time, setTime] = useState(0);
   const rafRef = useRef<number>(0);
@@ -68,9 +74,22 @@ export function CityMap({
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
-  const layers = LAYER_REGISTRY.map((definition) =>
+  const registryLayers = LAYER_REGISTRY.map((definition) =>
     definition.createLayer(dataMap[definition.id]?.data ?? [], visibility[definition.id] ?? false, time),
   ).filter(Boolean);
+
+  const historicBitmapLayer = historicMapData
+    ? new BitmapLayer({
+        id: "historic-map-bitmap",
+        image: historicMapData.image,
+        bounds: historicMapData.bounds,
+        opacity: historicMapData.opacity,
+      })
+    : null;
+
+  const layers = historicBitmapLayer
+    ? [historicBitmapLayer, ...registryLayers]
+    : registryLayers;
 
   const onDeckClick = useCallback(
     (info: PickingInfo) => {
@@ -158,7 +177,7 @@ export function CityMap({
           interactiveLayerIds={STATIC_INTERACTIVE_LAYER_IDS}
           onClick={handleStaticMapClick}
         >
-          <HistoricMapOverlay visible={historicMapVisible} />
+          <HistoricMapOverlay visible={historicMapVisible} onMapSelect={onHistoricMapSelect} />
 
           {visibility.buildings3d && (
             <MapLayer
@@ -181,6 +200,7 @@ export function CityMap({
               <>
                 <MapLayer
                   id="heritage-heatmap"
+                  source="heritage-pmtiles"
                   source-layer="heritage"
                   type="heatmap"
                   paint={{
@@ -205,6 +225,7 @@ export function CityMap({
                 />
                 <MapLayer
                   id="heritage-pick-points"
+                  source="heritage-pmtiles"
                   source-layer="heritage"
                   type="circle"
                   paint={{
@@ -222,6 +243,7 @@ export function CityMap({
             {visibility.permits && (
               <MapLayer
                 id="permits-circles"
+                source="permits-pmtiles"
                 source-layer="permits"
                 type="circle"
                 paint={{

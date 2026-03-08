@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { useMap } from "react-map-gl/maplibre";
-import { WarpedMapLayer } from "@allmaps/maplibre";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 
 interface MapIndex {
   id: string;
@@ -10,6 +9,7 @@ interface MapIndex {
   width: number;
   height: number;
   transformation_method: string;
+  bbox?: [number, number, number, number]; // [west, south, east, north]
 }
 
 interface FullMap extends MapIndex {
@@ -21,6 +21,18 @@ interface EraGroup {
   label: string;
   range: [number, number];
   maps: MapIndex[];
+}
+
+// Quadrilateral bounds: [[bottomLeft], [topLeft], [topRight], [bottomRight]]
+// Each corner is [lng, lat] - computed via affine transform from GCPs
+export type QuadBounds = [[number, number], [number, number], [number, number], [number, number]];
+
+export interface HistoricMapData {
+  image: HTMLImageElement;
+  bounds: QuadBounds;
+  opacity: number;
+  title: string;
+  year: number;
 }
 
 function groupByEra(maps: MapIndex[]): EraGroup[] {
@@ -44,69 +56,113 @@ function groupByEra(maps: MapIndex[]): EraGroup[] {
     .filter((era) => era.maps.length > 0);
 }
 
-function generateAnnotation(m: FullMap) {
-  const gcpFeatures = m.gcps.map((gcp) => ({
-    type: "Feature" as const,
-    properties: { resourceCoords: gcp.pixel },
-    geometry: { type: "Point" as const, coordinates: gcp.location },
-  }));
+/**
+ * Solve a least-squares affine transform from pixel coords to geo coords.
+ * Returns coefficients [a, b, c] such that: value = a*px + b*py + c
+ * Uses the normal equations: (A^T A)^-1 A^T b
+ */
+function solveAffineCoeffs(
+  gcps: { location: [number, number]; pixel: [number, number] }[],
+  coordIndex: 0 | 1, // 0=lng, 1=lat
+): [number, number, number] {
+  const n = gcps.length;
+  // Build A^T A (3x3) and A^T b (3x1)
+  let s_xx = 0, s_xy = 0, s_x = 0;
+  let s_yy = 0, s_y = 0;
+  let s_n = n;
+  let s_xv = 0, s_yv = 0, s_v = 0;
 
-  const svgSelector = `<svg width="${m.width}" height="${m.height}"><polygon points="0,0 ${m.width},0 ${m.width},${m.height} 0,${m.height}"/></svg>`;
-
-  let transformation: { type: string; options?: { order: number } };
-  if (m.transformation_method === "tps") {
-    transformation = { type: "thinPlateSpline" };
-  } else {
-    transformation = { type: "polynomial", options: { order: 1 } };
+  for (const gcp of gcps) {
+    const [px, py] = gcp.pixel;
+    const v = gcp.location[coordIndex];
+    s_xx += px * px;
+    s_xy += px * py;
+    s_x += px;
+    s_yy += py * py;
+    s_y += py;
+    s_xv += px * v;
+    s_yv += py * v;
+    s_v += v;
   }
 
-  return {
-    type: "AnnotationPage",
-    "@context": [
-      "http://www.w3.org/ns/anno.jsonld",
-      "http://geojson.org/geojson-ld/geojson-context.jsonld",
-      "http://iiif.io/api/extension/georef/1/context.json",
-    ],
-    items: [
-      {
-        id: `urn:cityscope:map:${m.id}`,
-        type: "Annotation",
-        motivation: "georeferencing",
-        target: {
-          type: "SpecificResource",
-          source: {
-            id: m.iiif_base,
-            type: "ImageService2",
-            height: m.height,
-            width: m.width,
-          },
-          selector: { type: "SvgSelector", value: svgSelector },
-        },
-        body: {
-          type: "FeatureCollection",
-          transformation,
-          features: gcpFeatures,
-        },
-      },
-    ],
-  };
+  // Solve 3x3 system via Cramer's rule
+  // | s_xx  s_xy  s_x  |   | a |   | s_xv |
+  // | s_xy  s_yy  s_y  | * | b | = | s_yv |
+  // | s_x   s_y   s_n  |   | c |   | s_v  |
+  const det =
+    s_xx * (s_yy * s_n - s_y * s_y) -
+    s_xy * (s_xy * s_n - s_y * s_x) +
+    s_x * (s_xy * s_y - s_yy * s_x);
+
+  if (Math.abs(det) < 1e-20) {
+    // Degenerate - fall back to mean position
+    return [0, 0, s_v / n];
+  }
+
+  const a =
+    (s_xv * (s_yy * s_n - s_y * s_y) -
+      s_xy * (s_yv * s_n - s_y * s_v) +
+      s_x * (s_yv * s_y - s_yy * s_v)) /
+    det;
+
+  const b =
+    (s_xx * (s_yv * s_n - s_y * s_v) -
+      s_xv * (s_xy * s_n - s_y * s_x) +
+      s_x * (s_xy * s_v - s_yv * s_x)) /
+    det;
+
+  const c =
+    (s_xx * (s_yy * s_v - s_yv * s_y) -
+      s_xy * (s_xy * s_v - s_yv * s_x) +
+      s_xv * (s_xy * s_y - s_yy * s_x)) /
+    det;
+
+  return [a, b, c];
+}
+
+/**
+ * Compute quadrilateral bounds by mapping image corners through an affine
+ * transform derived from GCPs. Returns corners in deck.gl BitmapLayer order:
+ * [bottomLeft, topLeft, topRight, bottomRight]
+ */
+function computeQuadBounds(
+  gcps: { location: [number, number]; pixel: [number, number] }[],
+  width: number,
+  height: number,
+): QuadBounds {
+  const lngCoeffs = solveAffineCoeffs(gcps, 0);
+  const latCoeffs = solveAffineCoeffs(gcps, 1);
+
+  const transform = (px: number, py: number): [number, number] => [
+    lngCoeffs[0] * px + lngCoeffs[1] * py + lngCoeffs[2],
+    latCoeffs[0] * px + latCoeffs[1] * py + latCoeffs[2],
+  ];
+
+  // Image corners in pixel space: (0,0)=top-left, (w,0)=top-right,
+  // (w,h)=bottom-right, (0,h)=bottom-left
+  const topLeft = transform(0, 0);
+  const topRight = transform(width, 0);
+  const bottomRight = transform(width, height);
+  const bottomLeft = transform(0, height);
+
+  // BitmapLayer expects: [bottomLeft, topLeft, topRight, bottomRight]
+  return [bottomLeft, topLeft, topRight, bottomRight];
 }
 
 interface HistoricMapOverlayProps {
   visible: boolean;
+  onMapSelect: (data: HistoricMapData | null) => void;
 }
 
-export function HistoricMapOverlay({ visible }: HistoricMapOverlayProps) {
-  const { current: mapRef } = useMap();
-  const warpedLayerRef = useRef<WarpedMapLayer | null>(null);
+export function HistoricMapOverlay({ visible, onMapSelect }: HistoricMapOverlayProps) {
   const [index, setIndex] = useState<MapIndex[]>([]);
   const [activeMapId, setActiveMapId] = useState<string | null>(null);
+  const [activeOverlay, setActiveOverlay] = useState<Omit<HistoricMapData, "opacity"> | null>(null);
   const [opacity, setOpacity] = useState(0.65);
   const [loading, setLoading] = useState(false);
   const [expandedEra, setExpandedEra] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  // Load lightweight index
   useEffect(() => {
     fetch("/data/historic_maps_index.json")
       .then((r) => r.json())
@@ -130,83 +186,65 @@ export function HistoricMapOverlay({ visible }: HistoricMapOverlayProps) {
       .filter((era) => era.maps.length > 0);
   }, [eras, search]);
 
-  // Initialize WarpedMapLayer when map style is loaded
   useEffect(() => {
-    const map = mapRef?.getMap();
-    if (!map || warpedLayerRef.current) return;
-
-    function addWarpedLayer() {
-      if (warpedLayerRef.current) return;
-      const layer = new WarpedMapLayer();
-      map!.addLayer(layer as never);
-      warpedLayerRef.current = layer;
-    }
-
-    if (map.loaded()) {
-      addWarpedLayer();
-    } else {
-      map.on("load", addWarpedLayer);
-    }
-
-    return () => {
-      map.off("load", addWarpedLayer);
-      try {
-        warpedLayerRef.current?.clear();
-      } catch {
-        // ignore cleanup errors
-      }
-      warpedLayerRef.current = null;
-    };
-  }, [mapRef]);
-
-  // Show/hide based on visibility
-  useEffect(() => {
-    if (!warpedLayerRef.current) return;
     if (!visible) {
-      warpedLayerRef.current.clear();
       setActiveMapId(null);
+      setActiveOverlay(null);
+      onMapSelect(null);
     }
-  }, [visible]);
+  }, [visible, onMapSelect]);
 
   const loadMap = useCallback(
     async (mapMeta: MapIndex) => {
-      if (!warpedLayerRef.current) return;
       setLoading(true);
       setActiveMapId(mapMeta.id);
       try {
         const resp = await fetch(`/data/maps/${mapMeta.id}.json`);
         const fullMap: FullMap = await resp.json();
 
-        warpedLayerRef.current.clear();
-        const annotation = generateAnnotation(fullMap);
-        await warpedLayerRef.current.addGeoreferenceAnnotation(annotation);
-        warpedLayerRef.current.setOpacity(opacity);
+        const bounds = computeQuadBounds(fullMap.gcps, fullMap.width, fullMap.height);
+        const imageUrl = `${fullMap.iiif_base}/full/768,/0/default.jpg`;
+
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const el = new Image();
+          el.crossOrigin = "anonymous";
+          el.onload = () => resolve(el);
+          el.onerror = reject;
+          el.src = imageUrl;
+        });
+
+        const overlay = { image: img, bounds, title: fullMap.title, year: fullMap.year };
+        setActiveOverlay(overlay);
+        onMapSelect({ ...overlay, opacity });
       } catch (err) {
-        console.error("Failed to load historic map:", err);
+        console.error("[HistoricMap] Failed to load map:", err);
         setActiveMapId(null);
+        setActiveOverlay(null);
+        onMapSelect(null);
       } finally {
         setLoading(false);
       }
     },
-    [opacity]
+    [opacity, onMapSelect]
   );
 
   const clearMap = useCallback(() => {
-    if (!warpedLayerRef.current) return;
-    warpedLayerRef.current.clear();
     setActiveMapId(null);
-  }, []);
+    setActiveOverlay(null);
+    onMapSelect(null);
+  }, [onMapSelect]);
 
+  // Update opacity on the active map overlay
   useEffect(() => {
-    if (warpedLayerRef.current && activeMapId) {
-      warpedLayerRef.current.setOpacity(opacity);
+    if (activeOverlay) {
+      onMapSelect({ ...activeOverlay, opacity });
     }
-  }, [opacity, activeMapId]);
+  }, [opacity, activeOverlay, onMapSelect]);
 
   if (!visible || index.length === 0) return null;
 
-  return (
-    <div className="absolute inset-x-3 top-3 z-20 max-h-[45vh] rounded-2xl border border-gray-700/50 bg-gray-900/95 p-3 shadow-2xl backdrop-blur-sm lg:inset-x-auto lg:left-[17.5rem] lg:top-3 lg:w-72">
+  return createPortal(
+    <div className="fixed inset-x-3 top-16 z-[9999] max-h-[45vh] overflow-hidden rounded-2xl border border-gray-700/50 bg-gray-900/95 p-3 shadow-2xl backdrop-blur-sm lg:inset-x-auto lg:left-[17.5rem] lg:top-16 lg:w-72">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-gray-400 font-bold text-xs tracking-wider uppercase">
           Historic Maps
@@ -298,6 +336,7 @@ export function HistoricMapOverlay({ visible }: HistoricMapOverlayProps) {
           />
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -10,6 +10,7 @@ import { ExploreBar } from "./components/ExploreBar";
 import { useLayerDataManager } from "./hooks/useLayerDataManager";
 import { LAYER_REGISTRY, getDefaultVisibility } from "./lib/layerRegistry";
 import type { LiveFeedItem, SelectedFeature } from "./types";
+import type { HistoricMapData } from "./components/HistoricMapOverlay";
 
 const START_VIEW: MapViewState = {
   longitude: -122.44,
@@ -54,15 +55,20 @@ function App() {
 
   const [viewState, setViewState] = useState<MapViewState>(START_VIEW);
   const flyoverTriggeredRef = useRef(false);
+  const [showLoadingOverlay, setShowLoadingOverlay] = useState(true);
+  const [loadingFadeOut, setLoadingFadeOut] = useState(false);
 
   useEffect(() => {
     if (loaded && !flyoverTriggeredRef.current) {
       flyoverTriggeredRef.current = true;
+      setLoadingFadeOut(true);
       window.setTimeout(() => setViewState(LANDING_VIEW), 800);
+      window.setTimeout(() => setShowLoadingOverlay(false), 1200);
     }
   }, [loaded]);
 
   const [historicMapVisible, setHistoricMapVisible] = useState(false);
+  const [historicMapData, setHistoricMapData] = useState<HistoricMapData | null>(null);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [isLayerDrawerOpen, setIsLayerDrawerOpen] = useState(false);
   const [isFeedExpanded, setIsFeedExpanded] = useState(false);
@@ -147,6 +153,7 @@ function App() {
         ...layers,
       }));
       setHistoricMapVisible(false);
+      setHistoricMapData(null);
       setActivePresetId(presetId);
       setIsLayerDrawerOpen(false);
       setIsFeedExpanded(false);
@@ -192,8 +199,8 @@ function App() {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-gray-950">
-      {!loaded && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gray-950 transition-opacity duration-1000">
+      {showLoadingOverlay && (
+        <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center bg-gray-950 transition-all duration-1000 ${loadingFadeOut ? "opacity-0 scale-105" : "opacity-100 scale-100"}`}>
           <h1 className="mb-2 text-4xl font-bold tracking-tight text-white">
             CityScope <span className="font-light text-gray-400">SF</span>
           </h1>
@@ -247,6 +254,8 @@ function App() {
         viewState={viewState}
         onViewStateChange={setViewState}
         historicMapVisible={historicMapVisible}
+        historicMapData={historicMapData}
+        onHistoricMapSelect={setHistoricMapData}
       />
     </div>
   );
