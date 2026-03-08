@@ -20,14 +20,19 @@ export interface Landmark {
 // SODA API types
 export interface CrimeDispatch {
   cad_number: string;
-  call_type: string;
   call_type_original: string;
-  priority: string;
+  call_type_original_desc: string;
+  call_type_final: string;
+  call_type_final_desc: string;
+  priority_original: string;
+  priority_final: string;
   received_datetime: string;
   onscene_datetime: string | null;
   intersection_point: { type: string; coordinates: [number, number] } | null;
+  intersection_name: string;
   analysis_neighborhood: string;
-  disposition: string;
+  police_district: string;
+  sensitive_call: boolean;
 }
 
 export interface ThreeOneOneRequest {

@@ -27,9 +27,9 @@ export function LiveFeed({ crimeData, threeOneOneData }: LiveFeedProps) {
     ...crimeData.slice(0, 15).map((d) => ({
       type: "crime" as const,
       time: d.received_datetime,
-      title: d.call_type_original || d.call_type,
-      subtitle: d.analysis_neighborhood,
-      priority: d.priority,
+      title: d.call_type_original_desc || d.call_type_final_desc || d.call_type_original,
+      subtitle: d.intersection_name ? `${d.intersection_name} - ${d.analysis_neighborhood}` : d.analysis_neighborhood,
+      priority: d.priority_final || d.priority_original,
     })),
     ...threeOneOneData.slice(0, 15).map((d) => ({
       type: "311" as const,

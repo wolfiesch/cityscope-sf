@@ -17,7 +17,7 @@ export function createCrimeLayer(data: CrimeDispatch[], visible: boolean) {
     visible,
     getPosition: (d) => d.intersection_point!.coordinates as [number, number],
     getFillColor: (d) =>
-      PRIORITY_COLORS[d.priority] ?? [200, 200, 200],
+      PRIORITY_COLORS[d.priority_final] ?? PRIORITY_COLORS[d.priority_original] ?? [200, 200, 200],
     getRadius: 40,
     radiusMinPixels: 4,
     radiusMaxPixels: 20,

@@ -113,7 +113,7 @@ export function CityMap({
     }
     if (layerId === "crime") {
       const d = info.object as CrimeDispatch;
-      return { text: `${d.call_type_original || d.call_type} [${d.priority}]`, style: { backgroundColor: "#1a1a2e", color: "#fff", fontSize: "12px", padding: "6px 10px", borderRadius: "6px" } };
+      return { text: `${d.call_type_original_desc || d.call_type_original} [${d.priority_final || d.priority_original}] - ${d.intersection_name || ""}`, style: { backgroundColor: "#1a1a2e", color: "#ff6666", fontSize: "12px", padding: "6px 10px", borderRadius: "6px" } };
     }
     if (layerId === "landmarks") {
       const d = info.object as Landmark;
