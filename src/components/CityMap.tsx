@@ -1,7 +1,7 @@
-import { useCallback } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { Map } from "react-map-gl/maplibre";
 import { DeckGL } from "@deck.gl/react";
-import type { PickingInfo } from "deck.gl";
+import type { PickingInfo, MapViewState } from "deck.gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import type {
@@ -21,14 +21,6 @@ import { createCrimeLayer } from "../layers/crimeLayer";
 import { createThreeOneOneLayer } from "../layers/threeOneOneLayer";
 import { createFireLayer } from "../layers/fireLayer";
 
-const INITIAL_VIEW = {
-  longitude: -122.44,
-  latitude: 37.76,
-  zoom: 12,
-  pitch: 0,
-  bearing: 0,
-};
-
 const MAP_STYLE =
   "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
@@ -41,6 +33,8 @@ interface CityMapProps {
   fire: FireCall[];
   visibility: LayerVisibility;
   onSelect: (feature: SelectedFeature | null) => void;
+  viewState: MapViewState;
+  onViewStateChange: (vs: MapViewState) => void;
 }
 
 export function CityMap({
@@ -52,14 +46,34 @@ export function CityMap({
   fire,
   visibility,
   onSelect,
+  viewState,
+  onViewStateChange,
 }: CityMapProps) {
+  // Animation time for pulsing points
+  const [time, setTime] = useState(0);
+  const rafRef = useRef<number>(0);
+
+  useEffect(() => {
+    let last = 0;
+    function tick(now: number) {
+      // Throttle to ~3fps for update triggers
+      if (now - last > 300) {
+        setTime(now);
+        last = now;
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    }
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, []);
+
   const layers = [
     createHeritageLayer(heritage, visibility.heritage),
     createPermitsLayer(permits, visibility.permits),
     createLandmarksLayer(landmarks, visibility.landmarks),
-    createCrimeLayer(crime, visibility.crime),
+    createCrimeLayer(crime, visibility.crime, time),
     createThreeOneOneLayer(threeOneOne, visibility.threeOneOne),
-    createFireLayer(fire, visibility.fire),
+    createFireLayer(fire, visibility.fire, time),
   ];
 
   const onClick = useCallback(
@@ -71,7 +85,6 @@ export function CityMap({
       const layerId = info.layer?.id ?? "unknown";
       let properties: Record<string, unknown>;
 
-      // Convert array-based data to named properties
       if (layerId === "heritage") {
         const d = info.object as HeritagePoint;
         const cats = ["Unknown", "Category A - Known Historic", "Category B - Potential", "Category C - Not Historic"];
@@ -102,37 +115,39 @@ export function CityMap({
   const getTooltip = useCallback((info: PickingInfo) => {
     if (!info.object) return null;
     const layerId = info.layer?.id;
+    const style = { backgroundColor: "#1a1a2e", color: "#fff", fontSize: "12px", padding: "6px 10px", borderRadius: "6px" };
 
     if (layerId === "heritage") {
       const d = info.object as HeritagePoint;
-      return { text: d[3] || "Heritage site", style: { backgroundColor: "#1a1a2e", color: "#fff", fontSize: "12px", padding: "6px 10px", borderRadius: "6px" } };
+      return { text: d[3] || "Heritage site", style };
     }
     if (layerId === "permits") {
       const d = info.object as PermitPoint;
-      return { text: `${d[3]} (${d[4] ?? "?"})`, style: { backgroundColor: "#1a1a2e", color: "#fff", fontSize: "12px", padding: "6px 10px", borderRadius: "6px" } };
+      return { text: `${d[3]} (${d[4] ?? "?"})`, style };
     }
     if (layerId === "crime") {
       const d = info.object as CrimeDispatch;
-      return { text: `${d.call_type_original_desc || d.call_type_original} [${d.priority_final || d.priority_original}] - ${d.intersection_name || ""}`, style: { backgroundColor: "#1a1a2e", color: "#ff6666", fontSize: "12px", padding: "6px 10px", borderRadius: "6px" } };
+      return { text: `${d.call_type_original_desc || d.call_type_original} [${d.priority_final || d.priority_original}]`, style: { ...style, color: "#ff6666" } };
     }
     if (layerId === "landmarks") {
       const d = info.object as Landmark;
-      return { text: d.name, style: { backgroundColor: "#1a1a2e", color: "#ffd700", fontSize: "13px", padding: "6px 10px", borderRadius: "6px", fontWeight: "bold" } };
+      return { text: d.name, style: { ...style, color: "#ffd700", fontSize: "13px", fontWeight: "bold" } };
     }
     if (layerId === "311") {
       const d = info.object as ThreeOneOneRequest;
-      return { text: `${d.service_name}: ${d.service_subtype || ""}`, style: { backgroundColor: "#1a1a2e", color: "#fff", fontSize: "12px", padding: "6px 10px", borderRadius: "6px" } };
+      return { text: `${d.service_name}: ${d.service_subtype || ""}`, style };
     }
     if (layerId === "fire") {
       const d = info.object as FireCall;
-      return { text: `${d.call_type} - ${d.address}`, style: { backgroundColor: "#1a1a2e", color: "#fff", fontSize: "12px", padding: "6px 10px", borderRadius: "6px" } };
+      return { text: `${d.call_type} - ${d.address}`, style };
     }
     return null;
   }, []);
 
   return (
     <DeckGL
-      initialViewState={INITIAL_VIEW}
+      viewState={viewState}
+      onViewStateChange={({ viewState: vs }) => onViewStateChange(vs as MapViewState)}
       controller={true}
       layers={layers}
       onClick={onClick}

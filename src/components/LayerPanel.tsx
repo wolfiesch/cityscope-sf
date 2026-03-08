@@ -9,42 +9,49 @@ interface LayerPanelProps {
 const LAYER_CONFIG: {
   key: keyof LayerVisibility;
   label: string;
+  icon: string;
   color: string;
   description: string;
 }[] = [
   {
     key: "heritage",
     label: "Heritage Sites",
+    icon: "\u{1F3DB}",
     color: "#ffc832",
     description: "145K parcels by CEQA category",
   },
   {
     key: "landmarks",
     label: "Landmarks",
+    icon: "\u{2B50}",
     color: "#ffd700",
     description: "NRHP + OSM historic sites",
   },
   {
     key: "permits",
     label: "Building Permits",
+    icon: "\u{1F3D7}",
     color: "#46dc64",
     description: "Active construction/demo",
   },
   {
     key: "crime",
     label: "Police Dispatch",
+    icon: "\u{1F6A8}",
     color: "#ff3232",
     description: "Live calls by priority",
   },
   {
     key: "fire",
     label: "Fire & EMS",
+    icon: "\u{1F692}",
     color: "#ff8232",
     description: "Live emergency calls",
   },
   {
     key: "threeOneOne",
     label: "311 Reports",
+    icon: "\u{1F4F1}",
     color: "#32c8b4",
     description: "Service requests + photos",
   },
@@ -52,12 +59,12 @@ const LAYER_CONFIG: {
 
 export function LayerPanel({ visibility, onToggle, counts }: LayerPanelProps) {
   return (
-    <div className="absolute top-4 left-4 bg-gray-900/90 backdrop-blur-sm rounded-xl p-4 w-64 shadow-2xl border border-gray-700/50 z-10">
+    <div className="absolute top-14 left-4 bg-gray-900/90 backdrop-blur-sm rounded-xl p-4 w-64 shadow-2xl border border-gray-700/50 z-10">
       <h2 className="text-white font-bold text-sm tracking-wider uppercase mb-3">
         Layers
       </h2>
       <div className="space-y-1">
-        {LAYER_CONFIG.map(({ key, label, color, description }) => (
+        {LAYER_CONFIG.map(({ key, label, icon, color, description }) => (
           <button
             key={key}
             onClick={() => onToggle(key)}
@@ -67,8 +74,9 @@ export function LayerPanel({ visibility, onToggle, counts }: LayerPanelProps) {
                 : "bg-gray-800/30 hover:bg-gray-800/50 opacity-50"
             }`}
           >
+            <span className="text-base shrink-0" role="img">{icon}</span>
             <div
-              className="w-3 h-3 rounded-full shrink-0"
+              className="w-2.5 h-2.5 rounded-full shrink-0"
               style={{
                 backgroundColor: visibility[key] ? color : "#444",
                 boxShadow: visibility[key]
