@@ -1,131 +1,136 @@
-import type { LayerVisibility } from "../types";
+import { useRef } from "react";
+import { LAYER_REGISTRY } from "../lib/layerRegistry";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 interface LayerPanelProps {
-  visibility: LayerVisibility;
-  onToggle: (layer: keyof LayerVisibility) => void;
-  counts: Record<keyof LayerVisibility, number>;
+  visibility: Record<string, boolean>;
+  onToggle: (id: string) => void;
+  counts: Record<string, number>;
   historicMapVisible: boolean;
   onToggleHistoricMap: () => void;
+  mobileOpen: boolean;
+  onClose: () => void;
 }
 
-const LAYER_CONFIG: {
-  key: keyof LayerVisibility;
-  label: string;
-  icon: string;
-  color: string;
-  description: string;
-}[] = [
-  {
-    key: "heritage",
-    label: "Heritage Sites",
-    icon: "\u{1F3DB}",
-    color: "#ffc832",
-    description: "145K parcels by CEQA category",
-  },
-  {
-    key: "landmarks",
-    label: "Landmarks",
-    icon: "\u{2B50}",
-    color: "#ffd700",
-    description: "NRHP + OSM historic sites",
-  },
-  {
-    key: "permits",
-    label: "Building Permits",
-    icon: "\u{1F3D7}",
-    color: "#46dc64",
-    description: "Active construction/demo",
-  },
-  {
-    key: "crime",
-    label: "Police Dispatch",
-    icon: "\u{1F6A8}",
-    color: "#ff3232",
-    description: "Live calls by priority",
-  },
-  {
-    key: "fire",
-    label: "Fire & EMS",
-    icon: "\u{1F692}",
-    color: "#ff8232",
-    description: "Live emergency calls",
-  },
-  {
-    key: "threeOneOne",
-    label: "311 Reports",
-    icon: "\u{1F4F1}",
-    color: "#32c8b4",
-    description: "Service requests + photos",
-  },
-];
+export function LayerPanel({
+  visibility,
+  onToggle,
+  counts,
+  historicMapVisible,
+  onToggleHistoricMap,
+  mobileOpen,
+  onClose,
+}: LayerPanelProps) {
+  const mobilePanelRef = useRef<HTMLDivElement>(null);
 
-export function LayerPanel({ visibility, onToggle, counts, historicMapVisible, onToggleHistoricMap }: LayerPanelProps) {
-  return (
-    <div className="absolute top-14 left-4 bg-gray-900/90 backdrop-blur-sm rounded-xl p-4 w-64 shadow-2xl border border-gray-700/50 z-10">
-      <h2 className="text-white font-bold text-sm tracking-wider uppercase mb-3">
-        Layers
-      </h2>
-      <div className="space-y-1">
-        {/* Historic Maps special toggle */}
+  useFocusTrap(mobileOpen, mobilePanelRef, onClose);
+
+  const panelContent = (
+    <>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-white">Layers</h2>
+        <button
+          onClick={onClose}
+          className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-700/50 hover:text-white lg:hidden"
+          aria-label="Close layers"
+        >
+          &times;
+        </button>
+      </div>
+
+      <div className="space-y-1.5">
         <button
           onClick={onToggleHistoricMap}
-          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-left ${
+          className={`w-full rounded-xl border px-3 py-2.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
             historicMapVisible
-              ? "bg-amber-900/30 hover:bg-amber-800/40 border border-amber-500/30"
-              : "bg-gray-800/30 hover:bg-gray-800/50 opacity-50"
+              ? "border-amber-500/30 bg-amber-900/30 hover:bg-amber-800/40"
+              : "border-gray-800/60 bg-gray-800/30 hover:bg-gray-800/50"
           }`}
+          aria-pressed={historicMapVisible}
         >
-          <span className="text-base shrink-0" role="img">{"\u{1F5FA}"}</span>
-          <div
-            className="w-2.5 h-2.5 rounded-full shrink-0"
-            style={{
-              backgroundColor: historicMapVisible ? "#d4a017" : "#444",
-              boxShadow: historicMapVisible ? "0 0 8px #d4a01760" : "none",
-            }}
-          />
-          <div className="flex-1 min-w-0">
-            <div className="text-white text-sm font-medium">Historic Maps</div>
-            <div className="text-gray-400 text-xs truncate">
-              Georeferenced Rumsey Collection
-            </div>
-          </div>
-          <span className="text-amber-400/60 text-xs font-mono">4</span>
-        </button>
-
-        <div className="border-t border-gray-700/30 my-1" />
-
-        {LAYER_CONFIG.map(({ key, label, icon, color, description }) => (
-          <button
-            key={key}
-            onClick={() => onToggle(key)}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-left ${
-              visibility[key]
-                ? "bg-gray-800/80 hover:bg-gray-700/80"
-                : "bg-gray-800/30 hover:bg-gray-800/50 opacity-50"
-            }`}
-          >
-            <span className="text-base shrink-0" role="img">{icon}</span>
+          <div className="flex items-center gap-3">
+            <span className="shrink-0 text-base" role="img">
+              {"\u{1F5FA}"}
+            </span>
             <div
-              className="w-2.5 h-2.5 rounded-full shrink-0"
+              className="h-2.5 w-2.5 shrink-0 rounded-full"
               style={{
-                backgroundColor: visibility[key] ? color : "#444",
-                boxShadow: visibility[key]
-                  ? `0 0 8px ${color}60`
-                  : "none",
+                backgroundColor: historicMapVisible ? "#d4a017" : "#444",
+                boxShadow: historicMapVisible ? "0 0 8px #d4a01760" : "none",
               }}
             />
-            <div className="flex-1 min-w-0">
-              <div className="text-white text-sm font-medium">{label}</div>
-              <div className="text-gray-400 text-xs truncate">
-                {description}
-              </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-white">Historic Maps</div>
+              <div className="truncate text-xs text-gray-400">Georeferenced Rumsey Collection</div>
             </div>
-            <span className="text-gray-400 text-xs font-mono tabular-nums">
-              {counts[key]?.toLocaleString() ?? "-"}
-            </span>
-          </button>
-        ))}
+            <span className="text-xs font-mono text-amber-400/60">2,257</span>
+          </div>
+        </button>
+
+        <div className="my-2 border-t border-gray-700/30" />
+
+        {LAYER_REGISTRY.map((def) => {
+          const isVisible = visibility[def.id] ?? false;
+
+          return (
+            <button
+              key={def.id}
+              onClick={() => onToggle(def.id)}
+              className={`w-full rounded-xl border px-3 py-2.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+                isVisible
+                  ? "border-gray-700/70 bg-gray-800/80 hover:bg-gray-700/80"
+                  : "border-gray-800/60 bg-gray-800/30 hover:bg-gray-800/50"
+              }`}
+              aria-pressed={isVisible}
+            >
+              <div className="flex items-center gap-3">
+                <span className="shrink-0 text-base" role="img">
+                  {def.icon}
+                </span>
+                <div
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{
+                    backgroundColor: isVisible ? def.color : "#444",
+                    boxShadow: isVisible ? `0 0 8px ${def.color}60` : "none",
+                  }}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-white">{def.label}</div>
+                  <div className="truncate text-xs text-gray-400">{def.description}</div>
+                </div>
+                <span className="text-xs font-mono tabular-nums text-gray-400">
+                  {counts[def.id]?.toLocaleString() ?? "-"}
+                </span>
+              </div>
+            </button>
+          );
+        })}
       </div>
-    </div>
+    </>
+  );
+
+  return (
+    <>
+      <div className="absolute left-4 top-16 z-20 hidden max-h-[calc(100vh-7rem)] w-64 overflow-y-auto rounded-2xl border border-gray-700/50 bg-gray-900/90 p-4 shadow-2xl backdrop-blur-sm lg:block">
+        {panelContent}
+      </div>
+
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden" onClick={onClose}>
+          <div className="absolute inset-0 bg-gray-950/80 backdrop-blur-sm" />
+          <div
+            ref={mobilePanelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Map layers"
+            tabIndex={-1}
+            onClick={(event) => event.stopPropagation()}
+            className="absolute inset-y-3 left-3 flex w-[min(92vw,22rem)] flex-col overflow-hidden rounded-3xl border border-gray-700/60 bg-gray-900/96 p-4 shadow-2xl"
+          >
+            <div className="min-h-0 flex-1 overflow-y-auto">{panelContent}</div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

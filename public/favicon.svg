@@ -1,0 +1,61 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>CityScope SF favicon</title>
+  <desc>Urban grid with a live signal beacon.</desc>
+  <defs>
+    <linearGradient id="bg" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#101825" />
+      <stop offset="0.55" stop-color="#0A111B" />
+      <stop offset="1" stop-color="#05080E" />
+    </linearGradient>
+    <linearGradient id="route" x1="16" y1="42" x2="50" y2="16" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFB347" />
+      <stop offset="1" stop-color="#FF5F39" />
+    </linearGradient>
+    <linearGradient id="scope" x1="25" y1="17" x2="51" y2="39" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9BE7FF" />
+      <stop offset="1" stop-color="#23C4D8" />
+    </linearGradient>
+    <radialGradient id="beacon" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(31 31) rotate(90) scale(7)">
+      <stop offset="0" stop-color="#FFF2BF" />
+      <stop offset="0.52" stop-color="#FFC857" />
+      <stop offset="1" stop-color="#FF8A34" />
+    </radialGradient>
+    <filter id="soft-glow" x="19" y="19" width="24" height="24" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix" />
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur" />
+      <feBlend in="SourceGraphic" in2="blur" mode="screen" result="shape" />
+    </filter>
+  </defs>
+
+  <rect x="2" y="2" width="60" height="60" rx="18" fill="url(#bg)" />
+  <rect x="2" y="2" width="60" height="60" rx="18" stroke="#1D2736" stroke-width="1.5" />
+
+  <g opacity="0.28" stroke="#8ADDF5" stroke-width="1.5" stroke-linecap="round">
+    <path d="M18 14V50" />
+    <path d="M32 14V50" />
+    <path d="M46 14V50" />
+    <path d="M14 18H50" />
+    <path d="M14 32H50" />
+    <path d="M14 46H50" />
+  </g>
+
+  <path
+    d="M16 42C22 36 27 31 34 29C39 27 45 24 50 16"
+    stroke="url(#route)"
+    stroke-width="4"
+    stroke-linecap="round"
+  />
+
+  <circle cx="38" cy="26" r="13.5" stroke="url(#scope)" stroke-width="3" />
+  <circle cx="38" cy="26" r="7" stroke="#8ADDF5" stroke-opacity="0.55" stroke-width="1.5" />
+
+  <g stroke="#8ADDF5" stroke-width="2" stroke-linecap="round">
+    <path d="M38 11V15" />
+    <path d="M38 37V41" />
+    <path d="M23 26H27" />
+    <path d="M49 26H53" />
+  </g>
+
+  <circle cx="31" cy="31" r="5.5" fill="url(#beacon)" filter="url(#soft-glow)" />
+  <circle cx="31" cy="31" r="1.8" fill="#FFF9E0" />
+</svg>

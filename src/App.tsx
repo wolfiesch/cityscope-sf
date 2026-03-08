@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { FlyToInterpolator } from "deck.gl";
 import type { MapViewState } from "deck.gl";
 import { CityMap } from "./components/CityMap";
@@ -7,20 +7,10 @@ import { DetailPanel } from "./components/DetailPanel";
 import { StatsBar } from "./components/StatsBar";
 import { LiveFeed } from "./components/LiveFeed";
 import { ExploreBar } from "./components/ExploreBar";
-import { useSodaApi } from "./hooks/useSodaApi";
-import { DATASETS } from "./lib/soda";
-import type {
-  HeritagePoint,
-  PermitPoint,
-  Landmark,
-  CrimeDispatch,
-  ThreeOneOneRequest,
-  FireCall,
-  LayerVisibility,
-  SelectedFeature,
-} from "./types";
+import { useLayerDataManager } from "./hooks/useLayerDataManager";
+import { LAYER_REGISTRY, getDefaultVisibility } from "./lib/layerRegistry";
+import type { LiveFeedItem, SelectedFeature } from "./types";
 
-// Cinematic intro: start zoomed out and tilted, then fly in
 const START_VIEW: MapViewState = {
   longitude: -122.44,
   latitude: 37.76,
@@ -39,144 +29,190 @@ const LANDING_VIEW: MapViewState = {
   transitionInterpolator: new FlyToInterpolator(),
 };
 
+const STATIC_COUNT_FALLBACKS: Record<string, number> = {
+  heritage: 145_000,
+  permits: 30_000,
+};
+
 function App() {
-  // Static data
-  const [heritage, setHeritage] = useState<HeritagePoint[]>([]);
-  const [permits, setPermits] = useState<PermitPoint[]>([]);
-  const [landmarks, setLandmarks] = useState<Landmark[]>([]);
+  const [visibility, setVisibility] = useState<Record<string, boolean>>(getDefaultVisibility());
+  const dataMap = useLayerDataManager(visibility);
 
-  // Loading state
-  const [loaded, setLoaded] = useState(false);
+  const counts = useMemo(
+    () => Object.fromEntries(
+      LAYER_REGISTRY.map((definition) => [
+        definition.id,
+        dataMap[definition.id]?.data.length || STATIC_COUNT_FALLBACKS[definition.id] || 0,
+      ]),
+    ),
+    [dataMap],
+  );
 
-  // Controlled view state for cinematic flyover + presets
+  const loaded = LAYER_REGISTRY
+    .filter((definition) => definition.defaultVisible && definition.fetchConfig.type === "static")
+    .every((definition) => (dataMap[definition.id]?.data.length ?? 0) > 0);
+
   const [viewState, setViewState] = useState<MapViewState>(START_VIEW);
+  const flyoverTriggeredRef = useRef(false);
 
-  // Load static data on mount
   useEffect(() => {
-    Promise.all([
-      fetch("/data/heritage.json").then((r) => r.json()),
-      fetch("/data/permits.json").then((r) => r.json()),
-      fetch("/data/landmarks.json").then((r) => r.json()),
-    ]).then(([h, p, l]) => {
-      setHeritage(h);
-      setPermits(p);
-      setLandmarks(l);
-      setLoaded(true);
+    if (loaded && !flyoverTriggeredRef.current) {
+      flyoverTriggeredRef.current = true;
+      window.setTimeout(() => setViewState(LANDING_VIEW), 800);
+    }
+  }, [loaded]);
 
-      // Trigger cinematic flyover after brief pause
-      setTimeout(() => {
-        setViewState(LANDING_VIEW);
-      }, 800);
+  const [historicMapVisible, setHistoricMapVisible] = useState(false);
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
+  const [isLayerDrawerOpen, setIsLayerDrawerOpen] = useState(false);
+  const [isFeedExpanded, setIsFeedExpanded] = useState(false);
+  const [selected, setSelected] = useState<SelectedFeature | null>(null);
+
+  const toggleLayer = useCallback((layer: string) => {
+    setActivePresetId(null);
+    setVisibility((prev) => {
+      const next = { ...prev, [layer]: !prev[layer] };
+
+      if (layer === "buildings3d" && next.buildings3d) next.google3d = false;
+      if (layer === "google3d" && next.google3d) next.buildings3d = false;
+
+      return next;
     });
   }, []);
 
-  // Live SODA data
-  const { data: crimeData } = useSodaApi<CrimeDispatch>(
-    {
-      dataset: DATASETS.POLICE_DISPATCH,
-      limit: 200,
-      order: "received_datetime DESC",
-    },
-    60000
-  );
+  const liveFeedItems = useMemo(() => {
+    const grouped = new Map<string, { item: LiveFeedItem; count: number }>();
 
-  const { data: threeOneOneData } = useSodaApi<ThreeOneOneRequest>(
-    {
-      dataset: DATASETS.THREE_ONE_ONE,
-      limit: 100,
-      order: "requested_datetime DESC",
-    },
-    60000
-  );
+    for (const definition of LAYER_REGISTRY) {
+      if (!definition.toLiveFeedItems) continue;
 
-  const { data: fireData } = useSodaApi<FireCall>(
-    {
-      dataset: DATASETS.FIRE_EMS,
-      limit: 100,
-      order: "received_dttm DESC",
-    },
-    60000
-  );
+      const layerData = dataMap[definition.id]?.data;
+      if (!layerData || layerData.length === 0) continue;
 
-  // Layer visibility
-  const [visibility, setVisibility] = useState<LayerVisibility>({
-    heritage: true,
-    permits: false,
-    landmarks: true,
-    crime: true,
-    threeOneOne: true,
-    fire: true,
-  });
+      for (const item of definition.toLiveFeedItems(layerData)) {
+        const existing = grouped.get(item.dedupeKey);
+        if (!existing) {
+          grouped.set(item.dedupeKey, { item, count: 1 });
+          continue;
+        }
 
-  // Historic map overlay toggle (separate from deck.gl layers)
-  const [historicMapVisible, setHistoricMapVisible] = useState(false);
+        const latestItem =
+          new Date(item.time).getTime() > new Date(existing.item.time).getTime()
+            ? item
+            : existing.item;
 
-  const toggleLayer = useCallback((layer: keyof LayerVisibility) => {
-    setVisibility((prev) => ({ ...prev, [layer]: !prev[layer] }));
-  }, []);
+        grouped.set(item.dedupeKey, {
+          item: latestItem,
+          count: existing.count + 1,
+        });
+      }
+    }
 
-  // Selection
-  const [selected, setSelected] = useState<SelectedFeature | null>(null);
+    return Array.from(grouped.values())
+      .map(({ item, count }) => ({
+        ...item,
+        duplicateCount: count > 1 ? count : undefined,
+      }))
+      .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+  }, [dataMap]);
 
-  // Counts
-  const counts: Record<keyof LayerVisibility, number> = {
-    heritage: heritage.length,
-    permits: permits.length,
-    landmarks: landmarks.length,
-    crime: crimeData.length,
-    threeOneOne: threeOneOneData.length,
-    fire: fireData.length,
-  };
+  const liveUpdatedAt = useMemo(() => {
+    let max: number | null = null;
 
-  const liveUpdatedAt = crimeData.length > 0 ? new Date() : null;
+    for (const definition of LAYER_REGISTRY) {
+      if (!definition.isLive) continue;
 
-  // Explore presets handler
+      const lastUpdated = dataMap[definition.id]?.lastUpdated;
+      if (lastUpdated != null && (max == null || lastUpdated > max)) {
+        max = lastUpdated;
+      }
+    }
+
+    return max != null ? new Date(max) : null;
+  }, [dataMap]);
+
   const handlePreset = useCallback(
     (
+      presetId: string,
       targetView: { longitude: number; latitude: number; zoom: number; pitch: number; bearing: number },
-      layers: Partial<Record<keyof LayerVisibility, boolean>>
+      layers: Record<string, boolean>,
     ) => {
       setViewState({
         ...targetView,
         transitionDuration: 2000,
         transitionInterpolator: new FlyToInterpolator(),
       });
-      setVisibility((prev) => ({ ...prev, ...layers }));
+      setVisibility(() => ({
+        ...Object.fromEntries(LAYER_REGISTRY.map((definition) => [definition.id, false])),
+        ...layers,
+      }));
+      setHistoricMapVisible(false);
+      setActivePresetId(presetId);
+      setIsLayerDrawerOpen(false);
+      setIsFeedExpanded(false);
       setSelected(null);
     },
-    []
+    [],
   );
 
+  const handleSelect = useCallback((feature: SelectedFeature | null) => {
+    setSelected(feature);
+    if (!feature) return;
+    setIsLayerDrawerOpen(false);
+    setIsFeedExpanded(false);
+  }, []);
+
+  const handleLiveFeedSelect = useCallback((item: LiveFeedItem) => {
+    setActivePresetId(null);
+    setIsLayerDrawerOpen(false);
+    setIsFeedExpanded(false);
+
+    if (item.selectedFeature) {
+      setSelected(item.selectedFeature);
+    }
+
+    if (!item.location) return;
+
+    const { longitude, latitude } = item.location;
+    setViewState((prev) => ({
+      ...prev,
+      longitude,
+      latitude,
+      zoom: Math.max(prev.zoom, 14.25),
+      pitch: Math.max(prev.pitch ?? 0, 28),
+      transitionDuration: 1100,
+      transitionInterpolator: new FlyToInterpolator(),
+    }));
+  }, []);
+
+  const activeLayerCount = useMemo(() => {
+    const visibleLayers = Object.values(visibility).filter(Boolean).length;
+    return visibleLayers + (historicMapVisible ? 1 : 0);
+  }, [historicMapVisible, visibility]);
+
   return (
-    <div className="w-screen h-screen bg-gray-950 overflow-hidden relative">
-      {/* Loading screen overlay */}
+    <div className="relative h-screen w-screen overflow-hidden bg-gray-950">
       {!loaded && (
-        <div className="absolute inset-0 z-50 bg-gray-950 flex flex-col items-center justify-center transition-opacity duration-1000">
-          <h1 className="text-white text-4xl font-bold tracking-tight mb-2">
-            CityScope <span className="text-gray-400 font-light">SF</span>
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gray-950 transition-opacity duration-1000">
+          <h1 className="mb-2 text-4xl font-bold tracking-tight text-white">
+            CityScope <span className="font-light text-gray-400">SF</span>
           </h1>
-          <p className="text-gray-400 text-lg mb-8">Real-time urban intelligence</p>
-          <div className="w-64 h-1 bg-gray-800 rounded-full overflow-hidden">
-            <div className="h-full loading-shimmer rounded-full" style={{ width: "100%" }} />
+          <p className="mb-8 text-lg text-gray-400">Real-time urban intelligence</p>
+          <div className="h-1 w-64 overflow-hidden rounded-full bg-gray-800">
+            <div className="loading-shimmer h-full rounded-full" style={{ width: "100%" }} />
           </div>
-          <p className="text-gray-500 text-sm mt-4">Loading 176,000 urban data points...</p>
+          <p className="mt-4 text-sm text-gray-500">Initializing map layers...</p>
         </div>
       )}
 
-      <StatsBar counts={counts} liveUpdatedAt={liveUpdatedAt} />
-
-      <CityMap
-        heritage={heritage}
-        permits={permits}
-        landmarks={landmarks}
-        crime={crimeData}
-        threeOneOne={threeOneOneData}
-        fire={fireData}
-        visibility={visibility}
-        onSelect={setSelected}
-        viewState={viewState}
-        onViewStateChange={setViewState}
-        historicMapVisible={historicMapVisible}
+      <StatsBar
+        counts={counts}
+        liveUpdatedAt={liveUpdatedAt}
+        activeLayerCount={activeLayerCount}
+        onOpenLayers={() => {
+          setSelected(null);
+          setIsLayerDrawerOpen(true);
+        }}
       />
 
       <LayerPanel
@@ -184,14 +220,34 @@ function App() {
         onToggle={toggleLayer}
         counts={counts}
         historicMapVisible={historicMapVisible}
-        onToggleHistoricMap={() => setHistoricMapVisible((v) => !v)}
+        onToggleHistoricMap={() => {
+          setActivePresetId(null);
+          setHistoricMapVisible((visible) => !visible);
+        }}
+        mobileOpen={isLayerDrawerOpen}
+        onClose={() => setIsLayerDrawerOpen(false)}
       />
 
+      <ExploreBar activePresetId={activePresetId} onPreset={handlePreset} />
+
       <DetailPanel feature={selected} onClose={() => setSelected(null)} />
+      <DetailPanel variant="mobile" feature={selected} onClose={() => setSelected(null)} />
 
-      <ExploreBar onPreset={handlePreset} />
+      <LiveFeed
+        items={liveFeedItems}
+        expanded={isFeedExpanded}
+        onToggleExpanded={() => setIsFeedExpanded((expanded) => !expanded)}
+        onSelectItem={handleLiveFeedSelect}
+      />
 
-      <LiveFeed crimeData={crimeData} threeOneOneData={threeOneOneData} fireData={fireData} />
+      <CityMap
+        dataMap={dataMap}
+        visibility={visibility}
+        onSelect={handleSelect}
+        viewState={viewState}
+        onViewStateChange={setViewState}
+        historicMapVisible={historicMapVisible}
+      />
     </div>
   );
 }

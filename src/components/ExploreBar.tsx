@@ -1,6 +1,5 @@
-import type { LayerVisibility } from "../types";
-
 interface Preset {
+  id: string;
   label: string;
   icon: string;
   description: string;
@@ -11,11 +10,12 @@ interface Preset {
     pitch: number;
     bearing: number;
   };
-  layers: Partial<Record<keyof LayerVisibility, boolean>>;
+  layers: Record<string, boolean>;
 }
 
 const PRESETS: Preset[] = [
   {
+    id: "heritage-hotspots",
     label: "Heritage Hotspots",
     icon: "\u{1F525}",
     description: "Where SF's history lives",
@@ -23,6 +23,7 @@ const PRESETS: Preset[] = [
     layers: { heritage: true, landmarks: true, permits: false, crime: false, threeOneOne: false, fire: false },
   },
   {
+    id: "live-emergencies",
     label: "Live Emergencies",
     icon: "\u{1F6A8}",
     description: "Active 911 calls right now",
@@ -30,6 +31,7 @@ const PRESETS: Preset[] = [
     layers: { heritage: false, landmarks: false, permits: false, crime: true, threeOneOne: false, fire: true },
   },
   {
+    id: "street-reports",
     label: "Street Reports",
     icon: "\u{1F4CB}",
     description: "311 + crime in the Mission",
@@ -37,6 +39,7 @@ const PRESETS: Preset[] = [
     layers: { heritage: false, landmarks: false, permits: false, crime: true, threeOneOne: true, fire: false },
   },
   {
+    id: "dev-vs-history",
     label: "Dev vs History",
     icon: "\u{2694}\u{FE0F}",
     description: "Construction meets heritage",
@@ -46,23 +49,51 @@ const PRESETS: Preset[] = [
 ];
 
 interface ExploreBarProps {
-  onPreset: (viewState: Preset["viewState"], layers: Preset["layers"]) => void;
+  activePresetId: string | null;
+  onPreset: (
+    presetId: string,
+    viewState: Preset["viewState"],
+    layers: Record<string, boolean>,
+  ) => void;
 }
 
-export function ExploreBar({ onPreset }: ExploreBarProps) {
+export function ExploreBar({ activePresetId, onPreset }: ExploreBarProps) {
+  const activePreset = PRESETS.find((preset) => preset.id === activePresetId);
+
+  const renderPresetButton = (preset: Preset) => {
+    const isActive = activePresetId === preset.id;
+
+    return (
+      <button
+        key={preset.id}
+        onClick={() => onPreset(preset.id, preset.viewState, preset.layers)}
+        className={`snap-start whitespace-nowrap rounded-full border px-3 py-2 text-sm shadow-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
+          isActive
+            ? "border-white/30 bg-white/15 text-white ring-1 ring-white/20"
+            : "border-gray-700/50 bg-gray-900/80 text-gray-300 hover:border-gray-600/60 hover:bg-gray-800/90 hover:text-white"
+        }`}
+        aria-pressed={isActive}
+      >
+        <span className="mr-1.5">{preset.icon}</span>
+        <span className="font-medium">{preset.label}</span>
+      </button>
+    );
+  };
+
   return (
-    <div className="absolute bottom-[9.5rem] left-1/2 -translate-x-1/2 flex gap-2 z-20">
-      {PRESETS.map((preset) => (
-        <button
-          key={preset.label}
-          onClick={() => onPreset(preset.viewState, preset.layers)}
-          title={preset.description}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-900/80 backdrop-blur-sm border border-gray-700/50 text-sm text-gray-300 hover:text-white hover:bg-gray-800/90 hover:border-gray-600/60 transition-all shadow-lg whitespace-nowrap"
-        >
-          <span>{preset.icon}</span>
-          <span className="font-medium">{preset.label}</span>
-        </button>
-      ))}
-    </div>
+    <>
+      <div className="absolute inset-x-0 bottom-24 z-20 lg:hidden">
+        <div className="overflow-x-auto px-4 pb-2">
+          <div className="flex w-max min-w-full gap-2 pr-4">{PRESETS.map(renderPresetButton)}</div>
+        </div>
+        <p className="px-4 text-xs text-gray-400">
+          {activePreset?.description ?? "Jump to a focused city lens."}
+        </p>
+      </div>
+
+      <div className="absolute bottom-[9.5rem] left-1/2 z-20 hidden -translate-x-1/2 gap-2 lg:flex">
+        {PRESETS.map(renderPresetButton)}
+      </div>
+    </>
   );
 }

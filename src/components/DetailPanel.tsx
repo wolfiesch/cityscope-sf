@@ -1,8 +1,12 @@
+import { useRef } from "react";
+import type { ReactNode } from "react";
 import type { SelectedFeature } from "../types";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 interface DetailPanelProps {
   feature: SelectedFeature | null;
   onClose: () => void;
+  variant?: "mobile";
 }
 
 const LAYER_COLORS: Record<string, string> = {
@@ -10,7 +14,7 @@ const LAYER_COLORS: Record<string, string> = {
   permits: "border-l-green-500",
   landmarks: "border-l-yellow-400",
   crime: "border-l-red-500",
-  "311": "border-l-teal-500",
+  threeOneOne: "border-l-teal-500",
   fire: "border-l-orange-500",
 };
 
@@ -19,7 +23,7 @@ const LAYER_TITLES: Record<string, string> = {
   permits: "Building Permit",
   landmarks: "Historic Landmark",
   crime: "Police Dispatch",
-  "311": "311 Report",
+  threeOneOne: "311 Report",
   fire: "Fire/EMS Call",
 };
 
@@ -66,14 +70,14 @@ function CrimeCard({ p }: { p: Record<string, unknown> }) {
   const time = str(p.received_datetime);
   return (
     <div className="space-y-3">
-      <div className="text-white text-lg font-semibold leading-tight">{desc}</div>
+      <div className="text-lg font-semibold leading-tight text-white">{desc}</div>
       <div className="flex items-center gap-2">
         {priority ? (
-          <span className={`text-xs px-2 py-0.5 rounded font-mono font-bold ${PRIORITY_STYLES[priority] ?? "text-gray-400"}`}>
+          <span className={`rounded px-2 py-0.5 font-mono text-xs font-bold ${PRIORITY_STYLES[priority] ?? "text-gray-400"}`}>
             Priority {priority}
           </span>
         ) : null}
-        {time ? <span className="text-gray-400 text-xs">{timeAgo(time)}</span> : null}
+        {time ? <span className="text-xs text-gray-400">{timeAgo(time)}</span> : null}
       </div>
       {has(p.intersection_name) ? <Field label="Location" value={str(p.intersection_name)} /> : null}
       {has(p.analysis_neighborhood) ? <Field label="Neighborhood" value={str(p.analysis_neighborhood)} /> : null}
@@ -87,18 +91,18 @@ function FireCard({ p }: { p: Record<string, unknown> }) {
   const time = str(p.received_dttm);
   return (
     <div className="space-y-3">
-      <div className="text-white text-lg font-semibold leading-tight">{str(p.call_type)}</div>
+      <div className="text-lg font-semibold leading-tight text-white">{str(p.call_type)}</div>
       <div className="flex items-center gap-2">
         {isLifeThreat ? (
-          <span className="text-xs px-2 py-0.5 rounded font-bold bg-red-500/20 text-red-400 border border-red-500/40">
+          <span className="rounded border border-red-500/40 bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-400">
             Life-Threatening
           </span>
         ) : has(p.call_type_group) ? (
-          <span className="text-xs px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/40">
+          <span className="rounded bg-orange-500/20 px-2 py-0.5 text-xs text-orange-400 border border-orange-500/40">
             {str(p.call_type_group)}
           </span>
         ) : null}
-        {time ? <span className="text-gray-400 text-xs">{timeAgo(time)}</span> : null}
+        {time ? <span className="text-xs text-gray-400">{timeAgo(time)}</span> : null}
       </div>
       {has(p.address) ? <Field label="Address" value={str(p.address)} /> : null}
       {has(p.neighborhoods_analysis_boundaries) ? <Field label="Neighborhood" value={str(p.neighborhoods_analysis_boundaries)} /> : null}
@@ -110,18 +114,20 @@ function FireCard({ p }: { p: Record<string, unknown> }) {
 function ThreeOneOneCard({ p, mediaUrl }: { p: Record<string, unknown>; mediaUrl?: string }) {
   return (
     <div className="space-y-3">
-      <div className="text-white text-lg font-semibold leading-tight">{str(p.service_name)}</div>
-      {has(p.service_subtype) ? <div className="text-gray-400 text-sm">{str(p.service_subtype)}</div> : null}
+      <div className="text-lg font-semibold leading-tight text-white">{str(p.service_name)}</div>
+      {has(p.service_subtype) ? <div className="text-sm text-gray-400">{str(p.service_subtype)}</div> : null}
       {mediaUrl ? (
         <img
           src={mediaUrl}
           alt="311 Report"
-          className="w-full rounded-lg max-h-52 object-cover border border-gray-700/50"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          className="max-h-52 w-full rounded-lg border border-gray-700/50 object-cover"
+          onError={(event) => {
+            (event.target as HTMLImageElement).style.display = "none";
+          }}
         />
       ) : null}
       {has(p.status_description) ? (
-        <span className="text-xs px-2 py-0.5 rounded bg-teal-500/20 text-teal-400 border border-teal-500/40">
+        <span className="rounded border border-teal-500/40 bg-teal-500/20 px-2 py-0.5 text-xs text-teal-400">
           {str(p.status_description)}
         </span>
       ) : null}
@@ -135,14 +141,14 @@ function HeritageCard({ p }: { p: Record<string, unknown> }) {
   const category = str(p.category);
   return (
     <div className="space-y-3">
-      {has(p.name) ? <div className="text-white text-lg font-semibold leading-tight">{str(p.name)}</div> : null}
+      {has(p.name) ? <div className="text-lg font-semibold leading-tight text-white">{str(p.name)}</div> : null}
       {category ? (
         <div>
-          <span className="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/40 font-medium">
+          <span className="rounded bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-400 border border-amber-500/40">
             {category}
           </span>
           {HERITAGE_CATEGORY_INFO[category] ? (
-            <div className="text-gray-400 text-xs mt-1.5 leading-relaxed">{HERITAGE_CATEGORY_INFO[category]}</div>
+            <div className="mt-1.5 text-xs leading-relaxed text-gray-400">{HERITAGE_CATEGORY_INFO[category]}</div>
           ) : null}
         </div>
       ) : null}
@@ -154,14 +160,14 @@ function PermitCard({ p }: { p: Record<string, unknown> }) {
   const type = str(p.type);
   return (
     <div className="space-y-3">
-      {has(p.address) ? <div className="text-white text-lg font-semibold leading-tight">{str(p.address)}</div> : null}
+      {has(p.address) ? <div className="text-lg font-semibold leading-tight text-white">{str(p.address)}</div> : null}
       <div className="flex items-center gap-2">
         {type ? (
-          <span className={`text-xs px-2 py-0.5 rounded font-medium ${PERMIT_BADGE[type] ?? PERMIT_BADGE.Other}`}>
+          <span className={`rounded px-2 py-0.5 text-xs font-medium ${PERMIT_BADGE[type] ?? PERMIT_BADGE.Other}`}>
             {type}
           </span>
         ) : null}
-        {has(p.year) ? <span className="text-gray-400 text-xs">{str(p.year)}</span> : null}
+        {has(p.year) ? <span className="text-xs text-gray-400">{str(p.year)}</span> : null}
       </div>
       {has(p.description) ? <Field label="Description" value={str(p.description)} /> : null}
     </div>
@@ -172,14 +178,14 @@ function LandmarkCard({ p }: { p: Record<string, unknown> }) {
   const source = str(p.source);
   return (
     <div className="space-y-3">
-      <div className="text-white text-lg font-semibold leading-tight">{str(p.name)}</div>
+      <div className="text-lg font-semibold leading-tight text-white">{str(p.name)}</div>
       <div className="flex items-center gap-2">
         {source ? (
-          <span className="text-xs px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/40">
+          <span className="rounded border border-yellow-500/40 bg-yellow-500/20 px-2 py-0.5 text-xs text-yellow-400">
             {source === "nrhp" ? "National Register" : "OpenStreetMap"}
           </span>
         ) : null}
-        {has(p.year) ? <span className="text-gray-400 text-xs">Est. {str(p.year)}</span> : null}
+        {has(p.year) ? <span className="text-xs text-gray-400">Est. {str(p.year)}</span> : null}
       </div>
       {has(p.description) ? <Field label="" value={str(p.description)} /> : null}
     </div>
@@ -189,20 +195,26 @@ function LandmarkCard({ p }: { p: Record<string, unknown> }) {
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      {label ? <div className="text-gray-500 text-xs uppercase tracking-wide">{label}</div> : null}
-      <div className="text-gray-200 text-sm">{value}</div>
+      {label ? <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div> : null}
+      <div className="text-sm text-gray-200">{value}</div>
     </div>
   );
 }
 
-export function DetailPanel({ feature, onClose }: DetailPanelProps) {
+export function DetailPanel({ feature, onClose, variant }: DetailPanelProps) {
   if (!feature) return null;
 
-  const { layer, properties: p } = feature;
+  const panelRef = useRef<HTMLDivElement>(null);
+  const isMobile = variant === "mobile";
+
+  useFocusTrap(isMobile, panelRef, onClose);
+
+  const layer = feature.layer === "311" ? "threeOneOne" : feature.layer;
+  const { properties: p } = feature;
   const mediaUrl = p.media_url as string | undefined;
   const borderColor = LAYER_COLORS[layer] ?? "border-l-gray-500";
 
-  let card: React.ReactNode;
+  let card: ReactNode;
   switch (layer) {
     case "crime":
       card = <CrimeCard p={p} />;
@@ -210,7 +222,7 @@ export function DetailPanel({ feature, onClose }: DetailPanelProps) {
     case "fire":
       card = <FireCard p={p} />;
       break;
-    case "311":
+    case "threeOneOne":
       card = <ThreeOneOneCard p={p} mediaUrl={mediaUrl} />;
       break;
     case "heritage":
@@ -226,7 +238,7 @@ export function DetailPanel({ feature, onClose }: DetailPanelProps) {
       card = (
         <div className="space-y-2">
           {Object.entries(p)
-            .filter(([k, v]) => v != null && v !== "" && !k.startsWith(":@") && k !== "intersection_point" && k !== "point" && k !== "media_url")
+            .filter(([key, value]) => value != null && value !== "" && !key.startsWith(":@") && key !== "intersection_point" && key !== "point" && key !== "media_url")
             .map(([key, value]) => (
               <Field key={key} label={key.replace(/_/g, " ")} value={String(value)} />
             ))}
@@ -234,20 +246,45 @@ export function DetailPanel({ feature, onClose }: DetailPanelProps) {
       );
   }
 
-  return (
-    <div className={`absolute top-14 right-4 bg-gray-900/95 backdrop-blur-sm rounded-xl p-4 w-80 max-h-[75vh] overflow-y-auto shadow-2xl border border-gray-700/50 border-l-4 ${borderColor} z-10`}>
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-gray-400 font-bold text-xs tracking-wider uppercase">
+  const panelContent = (
+    <div
+      ref={panelRef}
+      tabIndex={-1}
+      role={isMobile ? "dialog" : undefined}
+      aria-modal={isMobile ? "true" : undefined}
+      aria-label={LAYER_TITLES[layer] ?? layer}
+      className={`overflow-y-auto border border-gray-700/50 border-l-4 bg-gray-900/95 p-4 shadow-2xl backdrop-blur-sm ${borderColor}`}
+    >
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">
           {LAYER_TITLES[layer] ?? layer}
         </h2>
         <button
           onClick={onClose}
-          className="text-gray-500 hover:text-white transition-colors w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-700/50"
+          className="flex h-7 w-7 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-700/50 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          aria-label="Close details"
         >
           &times;
         </button>
       </div>
       {card}
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <div className="fixed inset-0 z-40 lg:hidden" onClick={onClose}>
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" />
+        <div className="absolute inset-x-3 bottom-24 max-h-[55vh]" onClick={(event) => event.stopPropagation()}>
+          {panelContent}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="absolute right-4 top-16 z-20 hidden max-h-[75vh] w-80 lg:block">
+      {panelContent}
     </div>
   );
 }

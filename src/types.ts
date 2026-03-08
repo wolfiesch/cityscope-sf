@@ -1,3 +1,6 @@
+import type { Layer } from "deck.gl";
+import type { ComponentType } from "react";
+
 // Heritage: [lng, lat, category_code, name]
 // category_code: 0=unknown, 1=Category A (Known Historic), 2=Category B (Potential), 3=Category C (Not Historic)
 export type HeritagePoint = [number, number, number, string];
@@ -64,16 +67,77 @@ export interface FireCall {
   neighborhoods_analysis_boundaries: string;
 }
 
-export interface LayerVisibility {
-  heritage: boolean;
-  permits: boolean;
-  landmarks: boolean;
-  crime: boolean;
-  threeOneOne: boolean;
-  fire: boolean;
+// --- Layer Registry Types ---
+
+export type LayerVisibility = Record<string, boolean>;
+
+export type LayerGroup =
+  | "Historic"
+  | "Public Safety"
+  | "Transportation"
+  | "Urban Life"
+  | "Environment"
+  | "Infrastructure"
+  | "Hazard Zones";
+
+export type FetchConfig =
+  | { type: "soda"; dataset: string; limit?: number; where?: string; order?: string; select?: string; interval?: number }
+  | { type: "external"; url: string | (() => string); interval?: number; transform: (raw: unknown) => unknown[] }
+  | { type: "static"; url: string }
+  | { type: "none" };
+
+export interface NormalizedFeature {
+  layerId: string;
+  title: string;
+  subtitle?: string;
+  badge?: { text: string; className: string };
+  time?: string;
+  fields: { label: string; value: string }[];
+  mediaUrl?: string;
+  raw: Record<string, unknown>;
+}
+
+export interface LiveFeedItem {
+  layerId: string;
+  key: string;
+  dedupeKey: string;
+  time: string;
+  title: string;
+  subtitle: string;
+  location?: { longitude: number; latitude: number };
+  selectedFeature?: SelectedFeature;
+  duplicateCount?: number;
+  badge?: { text: string; className: string };
+}
+
+export interface LayerDataState {
+  data: unknown[];
+  loading: boolean;
+  error: string | null;
+  status: "idle" | "loading" | "ready" | "error";
+  lastUpdated: number | null;
+}
+
+export interface LayerDefinition<T = unknown> {
+  id: string;
+  group: LayerGroup;
+  label: string;
+  icon: string;
+  color: string;
+  borderClass: string;
+  description: string;
+  defaultVisible: boolean;
+  isLive: boolean;
+  fetchConfig: FetchConfig;
+  createLayer: (data: T[], visible: boolean, time?: number) => Layer | null;
+  normalizeFeature: (picked: T) => NormalizedFeature;
+  getTooltip: (object: T) => { text: string; style: Record<string, string> } | null;
+  detailCard?: ComponentType<{ feature: NormalizedFeature }>;
+  toLiveFeedItems?: (data: T[]) => LiveFeedItem[];
 }
 
 export interface SelectedFeature {
   layer: string;
   properties: Record<string, unknown>;
+  normalized?: NormalizedFeature;
 }
