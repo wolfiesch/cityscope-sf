@@ -108,6 +108,9 @@ function App() {
     fire: true,
   });
 
+  // Historic map overlay toggle (separate from deck.gl layers)
+  const [historicMapVisible, setHistoricMapVisible] = useState(false);
+
   const toggleLayer = useCallback((layer: keyof LayerVisibility) => {
     setVisibility((prev) => ({ ...prev, [layer]: !prev[layer] }));
   }, []);
@@ -173,12 +176,15 @@ function App() {
         onSelect={setSelected}
         viewState={viewState}
         onViewStateChange={setViewState}
+        historicMapVisible={historicMapVisible}
       />
 
       <LayerPanel
         visibility={visibility}
         onToggle={toggleLayer}
         counts={counts}
+        historicMapVisible={historicMapVisible}
+        onToggleHistoricMap={() => setHistoricMapVisible((v) => !v)}
       />
 
       <DetailPanel feature={selected} onClose={() => setSelected(null)} />

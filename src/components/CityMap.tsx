@@ -20,6 +20,7 @@ import { createLandmarksLayer } from "../layers/landmarksLayer";
 import { createCrimeLayer } from "../layers/crimeLayer";
 import { createThreeOneOneLayer } from "../layers/threeOneOneLayer";
 import { createFireLayer } from "../layers/fireLayer";
+import { HistoricMapOverlay } from "./HistoricMapOverlay";
 
 const MAP_STYLE =
   "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
@@ -35,6 +36,7 @@ interface CityMapProps {
   onSelect: (feature: SelectedFeature | null) => void;
   viewState: MapViewState;
   onViewStateChange: (vs: MapViewState) => void;
+  historicMapVisible: boolean;
 }
 
 export function CityMap({
@@ -48,6 +50,7 @@ export function CityMap({
   onSelect,
   viewState,
   onViewStateChange,
+  historicMapVisible,
 }: CityMapProps) {
   // Animation time for pulsing points
   const [time, setTime] = useState(0);
@@ -56,7 +59,6 @@ export function CityMap({
   useEffect(() => {
     let last = 0;
     function tick(now: number) {
-      // Throttle to ~3fps for update triggers
       if (now - last > 300) {
         setTime(now);
         last = now;
@@ -154,7 +156,9 @@ export function CityMap({
       getTooltip={getTooltip}
       style={{ position: "absolute", top: "48px", bottom: "144px", left: "0", right: "0" }}
     >
-      <Map mapStyle={MAP_STYLE} />
+      <Map id="citymap" mapStyle={MAP_STYLE} reuseMaps>
+        <HistoricMapOverlay visible={historicMapVisible} />
+      </Map>
     </DeckGL>
   );
 }
