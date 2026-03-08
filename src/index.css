@@ -21,6 +21,17 @@ body {
 /* deck.gl tooltip overrides */
 .deck-tooltip {
   pointer-events: none !important;
+  background: rgba(10, 10, 20, 0.92) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(100, 116, 139, 0.35) !important;
+  border-radius: 10px !important;
+  padding: 8px 12px !important;
+  color: #e2e8f0 !important;
+  font-family: "Inter", system-ui, -apple-system, sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04) !important;
+  max-width: 280px !important;
 }
 
 /* Live feed slide-in animation */
@@ -59,4 +70,14 @@ body {
 
 .live-dot {
   animation: livePulse 1.5s ease-in-out infinite;
+}
+
+/* New live feed item glow */
+@keyframes newItemGlow {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(255, 255, 255, 0.04); }
+}
+
+.feed-item-new {
+  animation: slideIn 0.3s ease-out, newItemGlow 2s ease-in-out 3;
 }

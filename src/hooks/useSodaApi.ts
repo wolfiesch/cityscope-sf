@@ -20,7 +20,7 @@ export function useSodaApi<T>(
     } finally {
       setLoading(false);
     }
-  }, [query.dataset, query.limit, query.where, query.order]);
+  }, [query]);
 
   useEffect(() => {
     load();

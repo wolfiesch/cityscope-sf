@@ -51,13 +51,15 @@ export function LiveFeed({ items, expanded, onToggleExpanded, onSelectItem }: Li
       </div>
       <div className="h-[calc(100%-3rem)] overflow-y-auto px-4 py-2">
         <div className="space-y-1.5">
-          {displayItems.map((item) => (
+          {displayItems.map((item) => {
+            const isRecent = Date.now() - new Date(item.time).getTime() < 60_000;
+            return (
             <button
               key={`${item.layerId}-${item.key}`}
               onClick={() => onSelectItem(item)}
               className={`feed-item w-full rounded-xl border-l-2 bg-transparent px-3 py-2 text-left transition-all hover:bg-gray-800/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
                 LAYER_BORDER[item.layerId] ?? "border-l-gray-500/60"
-              }`}
+              } ${isRecent ? "feed-item-new" : ""}`}
             >
               <div className="flex items-start gap-3">
                 <span className="w-14 shrink-0 pt-0.5 text-right font-mono text-[11px] text-gray-500">
@@ -83,7 +85,8 @@ export function LiveFeed({ items, expanded, onToggleExpanded, onSelectItem }: Li
                 </div>
               </div>
             </button>
-          ))}
+          );
+          })}
           {displayItems.length === 0 ? (
             <div className="rounded-xl border border-dashed border-gray-800 px-4 py-5 text-center text-sm text-gray-500">
               Waiting for live incident data.

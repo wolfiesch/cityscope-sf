@@ -202,12 +202,12 @@ function Field({ label, value }: { label: string; value: string }) {
 }
 
 export function DetailPanel({ feature, onClose, variant }: DetailPanelProps) {
-  if (!feature) return null;
-
   const panelRef = useRef<HTMLDivElement>(null);
   const isMobile = variant === "mobile";
 
-  useFocusTrap(isMobile, panelRef, onClose);
+  useFocusTrap(isMobile && feature != null, panelRef, onClose);
+
+  if (!feature) return null;
 
   const layer = feature.layer === "311" ? "threeOneOne" : feature.layer;
   const { properties: p } = feature;
