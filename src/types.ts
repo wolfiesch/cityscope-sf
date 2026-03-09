@@ -67,6 +67,10 @@ export interface FireCall {
   neighborhoods_analysis_boundaries: string;
 }
 
+// --- Icon Sizes ---
+export const LAYER_ICON_SIZE = 18;
+export const PRESET_ICON_SIZE = 16;
+
 // --- Layer Registry Types ---
 
 export type LayerVisibility = Record<string, boolean>;

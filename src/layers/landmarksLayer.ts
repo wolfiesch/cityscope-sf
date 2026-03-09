@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { ScatterplotLayer } from "deck.gl";
 import { Star } from "lucide-react";
-import type { Landmark, LayerDefinition, NormalizedFeature } from "../types";
+import { LAYER_ICON_SIZE, type Landmark, type LayerDefinition, type NormalizedFeature } from "../types";
 
 export function createLandmarksLayer(data: Landmark[], visible: boolean) {
   return new ScatterplotLayer<Landmark>({
@@ -19,7 +19,7 @@ export const landmarksLayerDef: LayerDefinition<Landmark> = {
   id: "landmarks",
   group: "Historic",
   label: "Landmarks",
-  icon: createElement(Star, { size: 18 }),
+  icon: createElement(Star, { size: LAYER_ICON_SIZE }),
   color: "#ffd700",
   borderClass: "border-l-yellow-400",
   description: "NRHP + OSM historic sites",

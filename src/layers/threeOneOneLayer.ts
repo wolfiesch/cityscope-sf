@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { ScatterplotLayer } from "deck.gl";
 import { PhoneCall } from "lucide-react";
-import type { ThreeOneOneRequest, LayerDefinition, NormalizedFeature, LiveFeedItem, SelectedFeature } from "../types";
+import { LAYER_ICON_SIZE, type ThreeOneOneRequest, type LayerDefinition, type NormalizedFeature, type LiveFeedItem, type SelectedFeature } from "../types";
 
 export function createThreeOneOneLayer(data: ThreeOneOneRequest[], visible: boolean) {
   return new ScatterplotLayer<ThreeOneOneRequest>({
@@ -17,7 +17,7 @@ export const threeOneOneLayerDef: LayerDefinition<ThreeOneOneRequest> = {
   id: "threeOneOne",
   group: "Urban Life",
   label: "311 Reports",
-  icon: createElement(PhoneCall, { size: 18 }),
+  icon: createElement(PhoneCall, { size: LAYER_ICON_SIZE }),
   color: "#32c8b4",
   borderClass: "border-l-teal-500",
   description: "Service requests + photos",

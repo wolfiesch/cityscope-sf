@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { Landmark } from "lucide-react";
-import type { HeritagePoint, LayerDefinition, NormalizedFeature } from "../types";
+import { LAYER_ICON_SIZE, type HeritagePoint, type LayerDefinition, type NormalizedFeature } from "../types";
 
 const CATEGORY_NAMES: Record<number, string> = {
   0: "Unknown",
@@ -51,7 +51,7 @@ export const heritageLayerDef: LayerDefinition<HeritagePoint> = {
   id: "heritage",
   group: "Historic",
   label: "Heritage Sites",
-  icon: createElement(Landmark, { size: 18 }),
+  icon: createElement(Landmark, { size: LAYER_ICON_SIZE }),
   color: "#ffc832",
   borderClass: "border-l-amber-500",
   description: "145K parcels by CEQA category",

@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { Map } from "lucide-react";
+import { LAYER_ICON_SIZE } from "../types";
 import { LAYER_REGISTRY } from "../lib/layerRegistry";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 
@@ -51,7 +52,7 @@ export function LayerPanel({
         >
           <div className="flex items-center gap-3">
             <span className="shrink-0 text-gray-300">
-              <Map size={18} />
+              <Map size={LAYER_ICON_SIZE} />
             </span>
             <div
               className="h-2.5 w-2.5 shrink-0 rounded-full"

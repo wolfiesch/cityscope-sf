@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { ScatterplotLayer } from "deck.gl";
 import { Flame } from "lucide-react";
-import type { FireCall, LayerDefinition, NormalizedFeature, LiveFeedItem, SelectedFeature } from "../types";
+import { LAYER_ICON_SIZE, type FireCall, type LayerDefinition, type NormalizedFeature, type LiveFeedItem, type SelectedFeature } from "../types";
 
 export function createFireLayer(data: FireCall[], visible: boolean, time?: number) {
   const pulse = time !== undefined ? Math.sin(time / 300) : 0;
@@ -23,7 +23,7 @@ export const fireLayerDef: LayerDefinition<FireCall> = {
   id: "fire",
   group: "Public Safety",
   label: "Fire & EMS",
-  icon: createElement(Flame, { size: 18 }),
+  icon: createElement(Flame, { size: LAYER_ICON_SIZE }),
   color: "#ff8232",
   borderClass: "border-l-orange-500",
   description: "Live emergency calls",
