@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 
 interface MapIndex {
@@ -130,6 +130,9 @@ function computeQuadBounds(
   width: number,
   height: number,
 ): QuadBounds {
+  if (gcps.length < 3) {
+    throw new Error(`Need at least 3 GCPs for affine transform, got ${gcps.length}`);
+  }
   const lngCoeffs = solveAffineCoeffs(gcps, 0);
   const latCoeffs = solveAffineCoeffs(gcps, 1);
 
@@ -158,6 +161,7 @@ export function HistoricMapOverlay({ visible, onMapSelect }: HistoricMapOverlayP
   const [index, setIndex] = useState<MapIndex[]>([]);
   const [activeMapId, setActiveMapId] = useState<string | null>(null);
   const [activeOverlay, setActiveOverlay] = useState<Omit<HistoricMapData, "opacity"> | null>(null);
+  const loadSeqRef = useRef(0);
   const [opacity, setOpacity] = useState(0.65);
   const [loading, setLoading] = useState(false);
   const [expandedEra, setExpandedEra] = useState<string | null>(null);
@@ -196,11 +200,13 @@ export function HistoricMapOverlay({ visible, onMapSelect }: HistoricMapOverlayP
 
   const loadMap = useCallback(
     async (mapMeta: MapIndex) => {
+      const seq = ++loadSeqRef.current;
       setLoading(true);
       setActiveMapId(mapMeta.id);
       try {
         const resp = await fetch(`/data/maps/${mapMeta.id}.json`);
         const fullMap: FullMap = await resp.json();
+        if (seq !== loadSeqRef.current) return; // stale request
 
         const bounds = computeQuadBounds(fullMap.gcps, fullMap.width, fullMap.height);
         const imageUrl = `${fullMap.iiif_base}/full/768,/0/default.jpg`;
@@ -212,17 +218,19 @@ export function HistoricMapOverlay({ visible, onMapSelect }: HistoricMapOverlayP
           el.onerror = reject;
           el.src = imageUrl;
         });
+        if (seq !== loadSeqRef.current) return; // stale request
 
         const overlay = { image: img, bounds, title: fullMap.title, year: fullMap.year };
         setActiveOverlay(overlay);
         onMapSelect({ ...overlay, opacity });
       } catch (err) {
+        if (seq !== loadSeqRef.current) return;
         console.error("[HistoricMap] Failed to load map:", err);
         setActiveMapId(null);
         setActiveOverlay(null);
         onMapSelect(null);
       } finally {
-        setLoading(false);
+        if (seq === loadSeqRef.current) setLoading(false);
       }
     },
     [opacity, onMapSelect]

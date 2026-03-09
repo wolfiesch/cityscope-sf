@@ -62,8 +62,12 @@ function App() {
     if (loaded && !flyoverTriggeredRef.current) {
       flyoverTriggeredRef.current = true;
       setLoadingFadeOut(true);
-      window.setTimeout(() => setViewState(LANDING_VIEW), 800);
-      window.setTimeout(() => setShowLoadingOverlay(false), 1200);
+      const viewTimer = window.setTimeout(() => setViewState(LANDING_VIEW), 800);
+      const overlayTimer = window.setTimeout(() => setShowLoadingOverlay(false), 1200);
+      return () => {
+        clearTimeout(viewTimer);
+        clearTimeout(overlayTimer);
+      };
     }
   }, [loaded]);
 

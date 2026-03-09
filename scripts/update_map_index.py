@@ -17,7 +17,6 @@ MAPS_DIR = os.path.join(os.path.dirname(__file__), "..", "public", "data", "maps
 INDEX_FILE = os.path.join(os.path.dirname(__file__), "..", "public", "data", "historic_maps_index.json")
 
 # SF metro area - generous bounds that include the peninsula and nearby areas
-SF_CENTER = (-122.43, 37.77)
 SF_METRO = {
     "lat_min": 37.60,
     "lat_max": 37.90,
@@ -26,7 +25,7 @@ SF_METRO = {
 }
 
 # Max geographic spread for a "local" map (degrees)
-# ~0.5 deg ≈ 55km lat, ~44km lng at SF latitude - covers SF + nearby cities
+# ~1.0 deg ≈ 111km lat, ~88km lng at SF latitude - covers SF + nearby cities
 MAX_SPREAD_DEG = 1.0
 
 

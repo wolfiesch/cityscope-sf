@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Map, Layer as MapLayer, Source } from "react-map-gl/maplibre";
 import type { MapLayerMouseEvent } from "react-map-gl/maplibre";
 import { DeckGL } from "@deck.gl/react";
@@ -78,14 +78,18 @@ export function CityMap({
     definition.createLayer(dataMap[definition.id]?.data ?? [], visibility[definition.id] ?? false, time),
   ).filter(Boolean);
 
-  const historicBitmapLayer = historicMapData
-    ? new BitmapLayer({
-        id: "historic-map-bitmap",
-        image: historicMapData.image,
-        bounds: historicMapData.bounds,
-        opacity: historicMapData.opacity,
-      })
-    : null;
+  const historicBitmapLayer = useMemo(
+    () =>
+      historicMapData
+        ? new BitmapLayer({
+            id: "historic-map-bitmap",
+            image: historicMapData.image,
+            bounds: historicMapData.bounds,
+            opacity: historicMapData.opacity,
+          })
+        : null,
+    [historicMapData],
+  );
 
   const layers = historicBitmapLayer
     ? [historicBitmapLayer, ...registryLayers]
